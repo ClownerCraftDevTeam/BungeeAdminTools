@@ -15,9 +15,10 @@ import java.util.Arrays;
 import java.util.Calendar;
 import java.util.List;
 import java.util.TimeZone;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
+import com.mysql.cj.jdbc.exceptions.CommunicationsException;
+import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import net.md_5.bungee.api.ProxyServer;
 
@@ -27,7 +28,6 @@ import org.apache.log4j.varia.NullAppender;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.io.CharStreams;
-import com.mysql.jdbc.exceptions.jdbc4.CommunicationsException;
 
 import fr.Alphart.BAT.BAT;
 import fr.Alphart.BAT.Utils.CallbackUtils.Callback;
@@ -64,19 +64,21 @@ public class DataSourceHandler {
 
 		BAT.getInstance().getLogger().config("Initialization of HikariCP in progress ...");
 		BasicConfigurator.configure(new NullAppender());
-		ds = new HikariDataSource();
-		ds.setJdbcUrl("jdbc:mysql://" + this.host + ":" + this.port + "/" + this.database + 
+		HikariConfig hconf = new HikariConfig();
+		hconf.setJdbcUrl("jdbc:mysql://" + this.host + ":" + this.port + "/" + this.database +
 				"?useLegacyDatetimeCode=false&serverTimezone=" + TimeZone.getDefault().getID());
-		ds.setUsername(this.username);
-		ds.setPassword(this.password);
-		ds.addDataSourceProperty("cachePrepStmts", "true");
-		ds.setMaximumPoolSize(8);
+		hconf.setUsername(this.username);
+		hconf.setPassword(this.password);
+		hconf.addDataSourceProperty("cachePrepStmts", "true");
+		hconf.setMaximumPoolSize(8);
+		ds = new HikariDataSource(hconf);
+
 		try {
 			final Connection conn = ds.getConnection();
 		    int intOffset = Calendar.getInstance().getTimeZone().getOffset(Calendar.getInstance().getTimeInMillis()) / 1000;
 		    String offset = String.format("%02d:%02d", Math.abs(intOffset / 3600), Math.abs((intOffset / 60) % 60));
 		    offset = (intOffset >= 0 ? "+" : "-") + offset;
-			conn.createStatement().executeQuery("SET time_zone='" + offset + "';");
+			conn.createStatement().executeUpdate("SET time_zone='" + offset + "';");
 			conn.close();
 			BAT.getInstance().getLogger().config("BoneCP is loaded !");
 		} catch (final SQLException e) {
